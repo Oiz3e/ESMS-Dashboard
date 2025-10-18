@@ -1,4 +1,4 @@
-# Mahdy MQTT Next.js Starter
+# MQTT Next.js Starter
 
 Minimal Next.js (App Router) dashboard that connects directly to an MQTT broker over WebSocket.
 Suitable for Vercel deployment (frontend-only).
@@ -25,10 +25,10 @@ Suitable for Vercel deployment (frontend-only).
    - Deploy
 
 The client subscribes to:
-- `mahdy/sensors/bh1750`
-- `mahdy/sensors/guva`
-- `mahdy/sensors/max6675`
-- `mahdy/sensors/temt6000`
-- `mahdy/sensors/mpu6050`
+- `bems/bh1750`
+- `bems/guva`
+- `bems/max6675`
+- `bems/temt6000`
+- `bems/mpu6050`
 
 Extend `app/components/MqttCards.tsx` to add charts or more tiles.
