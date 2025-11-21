@@ -9,8 +9,8 @@ interface CardStatus {
 }
 
 // Interface untuk props yang diterima oleh komponen SensorCard
+// HAPUS: icon: string;
 interface SensorCardProps {
-  icon: string;
   title: string;
   value: string; // Nilai mentah (string) dari MQTT, misal "26.2" atau "—"
   unit: string;
@@ -23,7 +23,7 @@ interface SensorCardProps {
 
 // Komponen SensorCard yang menampilkan data individual sensor
 const SensorCard: React.FC<SensorCardProps> = ({
-  icon,
+  // HAPUS: icon,
   title,
   value,
   unit,
@@ -92,7 +92,7 @@ const SensorCard: React.FC<SensorCardProps> = ({
       <div
         style={{ display: 'flex', alignItems: 'center', marginBottom: '10px' }}
       >
-        <span style={{ fontSize: '2rem', marginRight: '10px' }}>{icon}</span>
+
         <h3
           style={{
             margin: 0,
@@ -185,11 +185,8 @@ const getVibrationStatus = (v: number): CardStatus => {
   return { text: 'Normal', color: '#22c55e' }; // Nilai 0
 };
 
-// <-- LOGIKA BARU UNTUK STATUS UV (0.0 - 1.0) -->
 const getUvStatus = (v: number): CardStatus => {
-  // Menerima nilai rata-rata 0.0 (Aman) s/d 1.0 (Api)
-  // Jika rata-rata > 0.5, berarti lebih sering mendeteksi api
-  if (v > 0.5) return { text: 'BAHAYA API/UV', color: '#dc2626' }; // Merah menyala
+  if (v > 0.5) return { text: 'BAHAYA API/UV', color: '#dc2626' };
   return { text: 'Aman', color: '#22c55e' };
 };
 
@@ -197,7 +194,6 @@ const getUvStatus = (v: number): CardStatus => {
 // KOMPONEN UTAMA
 // ==========================================================
 
-// Interface untuk props yang diterima oleh komponen MqttCards
 interface MqttCardsProps {
   temperature: string;
   humidity: string;
@@ -205,7 +201,7 @@ interface MqttCardsProps {
   noise: string;
   gas: string;
   vibration: string;
-  uvStatus: string; // <-- BARU: Menggantikan 'uvSensor'
+  uvStatus: string;
   lastUpdated: Record<string, string>;
 }
 
@@ -216,7 +212,7 @@ export default function MqttCards({
   noise,
   gas,
   vibration,
-  uvStatus, // <-- BARU: Menggantikan 'uvSensor'
+  uvStatus,
   lastUpdated,
 }: MqttCardsProps) {
   return (
@@ -230,7 +226,6 @@ export default function MqttCards({
       }}
     >
       <SensorCard
-        icon="🌡️"
         title="Suhu"
         value={temperature}
         unit="°C"
@@ -239,7 +234,6 @@ export default function MqttCards({
         displayType="value"
       />
       <SensorCard
-        icon="💧"
         title="Kelembapan"
         value={humidity}
         unit="%RH"
@@ -248,7 +242,6 @@ export default function MqttCards({
         displayType="value"
       />
       <SensorCard
-        icon="💡"
         title="Cahaya"
         value={light}
         unit="lux"
@@ -257,7 +250,6 @@ export default function MqttCards({
         displayType="value"
       />
       <SensorCard
-        icon="🔊"
         title="Kebisingan"
         value={noise}
         unit="Status"
@@ -266,7 +258,6 @@ export default function MqttCards({
         displayType="status"
       />
       <SensorCard
-        icon="💨"
         title="Gas/Asap"
         value={gas}
         unit="ppm (Relatif)"
@@ -275,7 +266,6 @@ export default function MqttCards({
         displayType="value"
       />
       <SensorCard
-        icon="⚡"
         title="Getaran"
         value={vibration}
         unit="Status"
@@ -283,16 +273,13 @@ export default function MqttCards({
         getStatus={getVibrationStatus}
         displayType="status"
       />
-
-      {/* <-- KARTU BARU UNTUK STATUS UV/API --> */}
       <SensorCard
-        icon="🔥" // Ikon api
-        title="Deteksi Api/UV" // Judul baru
-        value={uvStatus} // Prop baru
-        unit="Status" // Unit baru
-        updated={lastUpdated.uv_status} // lastUpdated baru
-        getStatus={getUvStatus} // Logika status baru
-        displayType="status" // Tampilkan "Aman" atau "Bahaya"
+        title="Api/UV"
+        value={uvStatus}
+        unit="Status"
+        updated={lastUpdated.uv_status}
+        getStatus={getUvStatus}
+        displayType="status"
       />
     </div>
   );
