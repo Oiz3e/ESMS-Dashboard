@@ -16,7 +16,11 @@ import {
 import 'chartjs-adapter-date-fns';
 import zoomPlugin from 'chartjs-plugin-zoom';
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale, zoomPlugin);
+// --- PERBAIKAN DI SINI: Bungkus register dengan pengecekan window ---
+if (typeof window !== 'undefined') {
+  ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Title, Tooltip, Legend, TimeScale, zoomPlugin);
+}
+// ------------------------------------------------------------------
 
 interface SensorDataPoint {
   time: string;

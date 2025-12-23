@@ -1,15 +1,18 @@
 // mqtt-worker.ts
+import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
 import mqtt from 'mqtt';
 
 // Setup Database & MQTT
 const prisma = new PrismaClient();
-// Ganti URL ini kalau perlu, atau ambil dari .env kalau lu udah setup dotenv
-const MQTT_URL = 'wss://broker.emqx.io:8084/mqtt'; 
-// Note: Kalau script ini jalan di Node.js (bukan browser), biasanya lebih stabil pake 'mqtt://' (TCP) daripada 'wss://' (WebSocket).
-// Kalau 'wss' gagal, coba ganti ke: 'mqtt://broker.emqx.io:1883'
+const MQTT_HOST = process.env.MQTT_HOST;
+const MQTT_PORT = process.env.MQTT_PORT;
 
-const client = mqtt.connect(MQTT_URL);
+if (!MQTT_HOST || !MQTT_PORT) {
+  throw new Error('MQTT_HOST atau MQTT_PORT belum diset di .env');
+}
+
+const client = mqtt.connect(`mqtt://${MQTT_HOST}:${MQTT_PORT}`);
 
 console.log('Worker: Mencoba connect ke MQTT...');
 

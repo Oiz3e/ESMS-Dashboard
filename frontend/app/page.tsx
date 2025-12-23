@@ -2,7 +2,8 @@
 
 import dynamic from 'next/dynamic';
 import Header from './components/Header';
-import HistoryChart from './components/HistoryChart';
+// HAPUS IMPORT STATIS INI:
+// import HistoryChart from './components/HistoryChart'; 
 import AnalyticsPrediction from './components/AnalyticsPrediction';
 import Footer from './components/Footer';
 
@@ -15,6 +16,10 @@ console.log('Connecting to MQTT Broker:', URL);
 type Msg = Record<string, any>;
 
 const MqttCards = dynamic(() => import('./components/MqttCards'), { ssr: false });
+
+// --- PERBAIKAN DI SINI: Gunakan dynamic import dengan ssr: false ---
+const HistoryChart = dynamic(() => import('./components/HistoryChart'), { ssr: false });
+// ------------------------------------------------------------------
 
 // Definisi interface untuk data historis
 interface SensorDataPoint {
@@ -261,7 +266,7 @@ export default function Page() {
         clientRef.current.end(true);
       }
     };
-  }, []); // Array dependensi kosong, tidak perlu memasukkan state history
+  }, []); // Array dependensi kosong
 
   const fmt = (v: number | string | null | undefined): string => {
     if (v === null || v === undefined || v === '—') return '—';
