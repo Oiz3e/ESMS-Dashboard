@@ -1,88 +1,105 @@
-// mqtt-worker.ts
 import 'dotenv/config';
+import express, { Request, Response } from 'express';
+import cors from 'cors';
 import { PrismaClient } from '@prisma/client';
 import mqtt from 'mqtt';
 
-// Setup Database & MQTT
+// ==========================================
+// 1. SETUP SERVER & DATABASE
+// ==========================================
+const app = express();
 const prisma = new PrismaClient();
+const PORT = process.env.PORT;
+
+// Middleware
+app.use(cors()); // Supaya Frontend (Port 3000) bisa akses Backend (Port 3001)
+app.use(express.json());
+
+// ==========================================
+// 2. SETUP MQTT (WORKER LOGIC)
+// ==========================================
 const MQTT_HOST = process.env.MQTT_HOST;
 const MQTT_PORT = process.env.MQTT_PORT;
 
 if (!MQTT_HOST || !MQTT_PORT) {
-  throw new Error('MQTT_HOST atau MQTT_PORT belum diset di .env');
+  console.error("ERROR: MQTT_HOST atau MQTT_PORT belum ada di .env");
+  process.exit(1);
 }
 
-const client = mqtt.connect(`mqtt://${MQTT_HOST}:${MQTT_PORT}`);
+const mqttClient = mqtt.connect(`mqtt://${MQTT_HOST}:${MQTT_PORT}`);
 
-console.log('Worker: Mencoba connect ke MQTT...');
-
-client.on('connect', () => {
-  console.log('Worker: TERHUBUNG ke Broker MQTT!');
-  // Subscribe ke semua topik bems
-  client.subscribe('bems/#', (err) => {
-    if (!err) {
-      console.log('Worker: Sukses subscribe ke bems/#');
-    }
-  });
+mqttClient.on('connect', () => {
+  console.log('MQTT: Terhubung ke Broker!');
+  // Subscribe ke topik data V6
+  mqttClient.subscribe('bems/raw/sensor');
 });
 
-client.on('message', async (topic, message) => {
-  const payloadStr = message.toString();
-  // console.log(`Terima data: ${topic} -> ${payloadStr}`);
+mqttClient.on('message', async (topic, message) => {
+  if (topic === 'bems/raw/sensor') {
+    try {
+      const data = JSON.parse(message.toString());
+      
+      // Simpan ke MongoDB (Single Document / Satu Paket)
+      await prisma.sensorLog.create({
+        data: {
+          deviceId:    data.device_id || "unknown",
+          lux:         parseFloat(data.lux || 0),
+          temperature: parseFloat(data.temperature || 0),
+          humidity:    parseFloat(data.humidity || 0),
+          mq2_adc:     parseFloat(data.mq2_adc || 0),
+          noise:       parseFloat(data.sound || 0),      // JSON: sound -> DB: noise
+          vibration:   parseFloat(data.vibration || 0),  // JSON: vibration -> DB: vibration
+          uv_status:   parseFloat(data.uv || 0)          // JSON: uv -> DB: uv_status
+        }
+      });
 
-  try {
-    const data = JSON.parse(payloadStr);
+      console.log(`[SAVED] Data dari ${data.device_id} berhasil disimpan.`);
 
-    // Kita siapin array janji (Promises) buat nyimpen data berbarengan
-    const savePromises = [];
-
-    // ==========================================
-    // LOGIC MAPPING: MQTT JSON -> DATABASE ROW
-    // ==========================================
-
-    // 1. Cek Topik Environment
-    if (topic === 'bems/environment') {
-      if (data.tempC) savePromises.push(saveToDB('temperature', parseFloat(data.tempC)));
-      if (data.hum)   savePromises.push(saveToDB('humidity', parseFloat(data.hum)));
-      if (data.lux)   savePromises.push(saveToDB('light', parseFloat(data.lux)));
+    } catch (err) {
+      console.error('MQTT Error:', err);
     }
-    
-    // 2. Cek Topik Gas & Suara
-    else if (topic === 'bems/gas_sound') {
-      if (data.sound_status_avg) savePromises.push(saveToDB('noise', parseFloat(data.sound_status_avg)));
-      if (data.mq2_adc)          savePromises.push(saveToDB('gas', parseFloat(data.mq2_adc)));
-    }
-
-    // 3. Cek Topik Getaran
-    else if (topic === 'bems/motion') {
-      if (data.vibration_status) savePromises.push(saveToDB('vibration', parseFloat(data.vibration_status)));
-    }
-
-    // 4. Cek Topik UV (Baru)
-    else if (topic === 'bems/uv_status') {
-      if (data.uv_status) savePromises.push(saveToDB('uv_status', parseFloat(data.uv_status)));
-    }
-
-    // Jalankan simpan ke database
-    if (savePromises.length > 0) {
-      await Promise.all(savePromises);
-      console.log(`[SAVED] Disimpan ${savePromises.length} data dari ${topic}`);
-    }
-
-  } catch (err) {
-    console.error('Error parsing JSON:', err);
   }
 });
 
-// Fungsi Helper buat Simpan ke Prisma
-async function saveToDB(topicName: string, value: number) {
-  if (isNaN(value)) return; // Jangan simpan kalau bukan angka
-  
-  return prisma.energyLog.create({
-    data: {
-      topic: topicName,
-      value: value,
-      // deviceId: "ESP32_01", // Opsional kalau mau diisi
-    },
-  });
-}
+// ==========================================
+// 3. API ENDPOINTS (UNTUK FRONTEND)
+// ==========================================
+
+// Endpoint 1: Ambil data realtime terakhir (Opsional, buat cek status)
+app.get('/api/latest', async (req: Request, res: Response) => {
+  try {
+    const latest = await prisma.sensorLog.findFirst({
+      orderBy: { createdAt: 'desc' }
+    });
+    res.json(latest);
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil data terbaru' });
+  }
+});
+
+// Endpoint 2: Ambil data history (Untuk Grafik)
+// Contoh URL: http://localhost:3001/api/history?limit=50
+app.get('/api/history', async (req: Request, res: Response) => {
+  try {
+    // Ambil parameter limit dari URL (default 100 data terakhir)
+    const limit = parseInt(req.query.limit as string) || 100;
+
+    const history = await prisma.sensorLog.findMany({
+      take: limit,
+      orderBy: { createdAt: 'desc' }, // Urutkan dari yang terbaru
+    });
+
+    // Kita balik urutannya (asc) supaya grafik mulainya dari kiri ke kanan
+    res.json(history.reverse());
+  } catch (error) {
+    res.status(500).json({ error: 'Gagal mengambil history' });
+  }
+});
+
+// ==========================================
+// 4. JALANKAN SERVER
+// ==========================================
+app.listen(PORT, () => {
+  console.log(`API Server berjalan di http://localhost:${PORT}`);
+  console.log(`Menunggu data MQTT...`);
+});
