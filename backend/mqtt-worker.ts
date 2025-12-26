@@ -54,11 +54,10 @@ mqttClient.on('message', async (topic, message) => {
         }
       });
 
-      // Uncomment baris di bawah jika ingin lihat log setiap data masuk
-      // console.log(`💾 [SAVED] Data dari ${data.device_id} disimpan.`);
+      console.log(`[SAVED] Data dari ${data.device_id} disimpan.`);
 
     } catch (err) {
-      console.error('❌ MQTT Error:', err);
+      console.error('MQTT Error:', err);
     }
   }
 });

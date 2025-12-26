@@ -196,15 +196,7 @@ export default function DashboardClient({ initialHistory }: DashboardProps) {
           <h2 style={{ fontSize: '1.5rem', marginBottom: '16px', color: '#cbd5e1' }}>
             Grafik Historis
           </h2>
-          <HistoryChart
-            temperatureHistory={temperatureHistory}
-            humidityHistory={humidityHistory}
-            lightHistory={lightHistory}
-            noiseHistory={noiseHistory}
-            gasHistory={gasHistory}
-            vibrationHistory={vibrationHistory}
-            uvStatusHistory={uvStatusHistory} 
-          />
+          <HistoryChart />
         </section>
 
         {/* <section aria-label="Analitik dan Prediksi">
