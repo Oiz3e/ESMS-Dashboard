@@ -9,26 +9,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// === MODEL BARU: SATU DOKUMEN BERISI SEMUA DATA ===
 model SensorLog {
   id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  deviceId    String   // Contoh: "esp32_01"
+  deviceId    String   @map("device_id") // Mapping ke JSON "device_id"
   
-  // Data Lingkungan
+  // Data Lingkungan (Float karena ada koma)
   lux         Float
   temperature Float
   humidity    Float
   
-  // Data Gas & Suara
-  mq2_adc     Float    // Nilai ADC Gas
-  noise       Float    // Dari 'sound' (0/1 atau rata-rata)
+  // Data Sensor Raw (Int karena bilangan bulat dari Arduino)
+  mq2_adc     Int      // JSON: "mq2_adc"
+  sound       Int      // JSON: "sound" (0 atau 1)
+  vibration   Int      // JSON: "vibration" (0 atau 1)
+  uv          Int      // JSON: "uv" (0 atau 1)
   
-  // Data Gerak & Api
-  vibration   Float    // Status getaran
-  uv_status   Float    // Dari 'uv' status
+  // Metrik Performa Jaringan
+  latency     Float    @map("latency_ms") // Mapping ke JSON "latency_ms"
   
   // Waktu
-  createdAt   DateTime @default(now())
+  timestamp   DateTime // Waktu AKURAT dari sensor (hasil koreksi RTT)
+  createdAt   DateTime @default(now()) // Waktu masuk ke Database (untuk audit)
 
-  @@map("sensorLog") // Nama collection di MongoDB nanti
+  @@map("sensorLog")
 }
