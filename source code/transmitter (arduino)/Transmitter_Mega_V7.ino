@@ -118,35 +118,50 @@ void readAllSensors() {
   vib_status = (totalAccel > VIB_THRESHOLD) ? 1 : 0; 
 }
 
+// --- HELPER FUNCTION ---
+// Fungsi ini akan mencoba mengirim sampai berhasil atau timeout
+void sendMsgSafe(struct can_frame *msg) {
+  unsigned long timeout = millis();
+  
+  // Coba kirim. Jika buffer penuh (MCP2515::ERROR_ALLTXBUSY), ulang lagi.
+  // Loop ini akan berhenti begitu pesan berhasil masuk buffer.
+  while (mcp2515.sendMessage(msg) != MCP2515::ERROR_OK) {
+    // Jika sudah menunggu lebih dari 20ms (misal kabel putus), break agar tidak hang
+    if (millis() - timeout > 20) {
+      Serial.println("Error: CAN Buffer Full / Bus Error");
+      break; 
+    }
+    // Yield untuk memberi nafas pada background task (penting jika pakai ESP32/WiFi)
+    yield(); 
+  }
+}
+
+// --- FUNGSI UTAMA YANG DIPERBAIKI ---
 void sendDataBurst() {
   // --- FRAME 1: LUX (ID 0x12) ---
   canMsg.can_id = 0x12;
   canMsg.can_dlc = 4;
-  memcpy(canMsg.data, &lux, 4); // Float 4 byte
-  mcp2515.sendMessage(&canMsg);
-  delay(2); // Jeda mikro agar buffer aman
+  memcpy(canMsg.data, &lux, 4); 
+  sendMsgSafe(&canMsg); // Menggantikan sendMessage + delay
 
   // --- FRAME 2: TEMP & HUM (ID 0x13) ---
   canMsg.can_id = 0x13;
   canMsg.can_dlc = 8;
-  memcpy(canMsg.data, &temp, 4);     // Byte 0-3
-  memcpy(canMsg.data + 4, &hum, 4);  // Byte 4-7
-  mcp2515.sendMessage(&canMsg);
-  delay(2);
+  memcpy(canMsg.data, &temp, 4);     
+  memcpy(canMsg.data + 4, &hum, 4);  
+  sendMsgSafe(&canMsg); 
 
   // --- FRAME 3: STATUS & GAS (ID 0x14) ---
   canMsg.can_id = 0x14;
   canMsg.can_dlc = 5;
   
-  // Pecah uint16_t MQ2 jadi 2 byte
   uint16_t mq2_safe = (uint16_t)mq2_val; 
-  memcpy(canMsg.data, &mq2_safe, 2);      // Byte 0-1
+  memcpy(canMsg.data, &mq2_safe, 2);      
+  canMsg.data[2] = (uint8_t)sound_status; 
+  canMsg.data[3] = (uint8_t)vib_status;   
+  canMsg.data[4] = (uint8_t)uv_status;    
   
-  canMsg.data[2] = (uint8_t)sound_status; // Byte 2
-  canMsg.data[3] = (uint8_t)vib_status;   // Byte 3
-  canMsg.data[4] = (uint8_t)uv_status;    // Byte 4
+  sendMsgSafe(&canMsg);
   
-  mcp2515.sendMessage(&canMsg);
-  
-  Serial.println(">> Data Replied (3 Frames)");
+  Serial.println(">> Data Replied (3 Frames - Optimized)");
 }
